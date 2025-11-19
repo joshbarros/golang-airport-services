@@ -29,27 +29,60 @@ This document outlines a comprehensive microservices architecture for airport op
 
 ## Architecture Principles
 
-### 1. Domain-Driven Design (DDD)
-- Services organized around business capabilities
-- Clear bounded contexts for each domain
-- Ubiquitous language shared across teams
+This project follows industry best practices and proven architectural patterns to ensure maintainability, scalability, and quality.
 
-### 2. Single Responsibility
-- Each microservice owns a specific business capability
-- Independent deployment and scaling
-- Loose coupling, high cohesion
+### Core Architectural Approaches
 
-### 3. Database per Service
+#### 1. Clean Architecture
+We follow Uncle Bob's Clean Architecture principles with clear separation of concerns:
+- **Entities (Domain Layer)**: Pure business logic, framework-independent
+- **Use Cases (Application Layer)**: Application-specific business rules
+- **Interface Adapters**: Controllers, gateways, presenters
+- **Frameworks & Drivers**: External concerns (web, database, etc.)
+
+**See detailed guide**: [docs/CLEAN_ARCHITECTURE.md](./docs/CLEAN_ARCHITECTURE.md)
+
+#### 2. Domain-Driven Design (DDD)
+- Services organized around **Bounded Contexts** (business capabilities)
+- **Ubiquitous Language** shared between developers and domain experts
+- Rich **Domain Models** with behavior, not just data
+- **Aggregates** enforce invariants and transaction boundaries
+- **Domain Events** for inter-service communication
+- Clear separation between **Entities**, **Value Objects**, and **Domain Services**
+
+**See detailed guide**: [docs/DDD_GUIDE.md](./docs/DDD_GUIDE.md)
+
+#### 3. SOLID Principles
+All code follows SOLID principles:
+- **S**ingle Responsibility: One reason to change
+- **O**pen/Closed: Open for extension, closed for modification
+- **L**iskov Substitution: Subtypes must be substitutable
+- **I**nterface Segregation: Many small interfaces over one large
+- **D**ependency Inversion: Depend on abstractions, not concretions
+
+**See detailed guide**: [docs/SOLID_PRINCIPLES.md](./docs/SOLID_PRINCIPLES.md)
+
+#### 4. Test-Driven Development (TDD)
+- **Write tests first** before production code
+- **Red-Green-Refactor** cycle
+- Comprehensive test coverage (unit, integration, E2E)
+- Tests as living documentation
+
+**See detailed guide**: [docs/TDD_GUIDE.md](./docs/TDD_GUIDE.md)
+
+### Design Principles
+
+#### 5. Database per Service
 - Each service manages its own data store
 - No direct database access across services
 - Data consistency through events and eventual consistency
 
-### 4. API-First Design
+#### 6. API-First Design
 - Well-defined service contracts (REST/gRPC)
 - Versioned APIs for backward compatibility
 - Comprehensive API documentation
 
-### 5. Resilience & Fault Tolerance
+#### 7. Resilience & Fault Tolerance
 - Circuit breakers for external dependencies
 - Retry mechanisms with exponential backoff
 - Graceful degradation under load

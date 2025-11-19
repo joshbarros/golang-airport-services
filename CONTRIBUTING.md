@@ -100,13 +100,30 @@ Branch naming conventions:
 - `test/` - Test improvements
 - `chore/` - Maintenance tasks
 
-### 2. Make Changes
+### 2. Make Changes Using TDD
 
-- Write clean, readable code
-- Follow Go best practices
-- Add tests for new functionality
-- Update documentation as needed
-- Keep commits atomic and focused
+We follow **Test-Driven Development (TDD)**. See [docs/TDD_GUIDE.md](./docs/TDD_GUIDE.md) for details.
+
+**TDD Cycle**:
+1. 🔴 **RED**: Write a failing test first
+2. 🟢 **GREEN**: Write minimal code to make it pass
+3. 🔵 **REFACTOR**: Improve code quality
+4. 🔁 **REPEAT**: Continue with next test
+
+**Required**:
+- ✅ Write tests BEFORE production code
+- ✅ Follow Clean Architecture principles
+- ✅ Apply DDD patterns (Entities, Value Objects, Aggregates)
+- ✅ Adhere to SOLID principles
+- ✅ Add comprehensive tests (unit, integration)
+- ✅ Update documentation as needed
+- ✅ Keep commits atomic and focused
+
+**Architecture Guides**:
+- [Clean Architecture](./docs/CLEAN_ARCHITECTURE.md)
+- [Domain-Driven Design](./docs/DDD_GUIDE.md)
+- [SOLID Principles](./docs/SOLID_PRINCIPLES.md)
+- [TDD Workflow](./docs/TDD_GUIDE.md)
 
 ### 3. Test Your Changes
 

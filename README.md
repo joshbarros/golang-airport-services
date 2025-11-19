@@ -27,6 +27,24 @@ This is a **microservices-based architecture** with 24 independent services orga
 
 For detailed architecture, see [ARCHITECTURE.md](./ARCHITECTURE.md)
 
+### Architectural Principles
+
+This project strictly follows industry best practices:
+
+- **🏗️ Clean Architecture**: Clear separation of concerns with dependency inversion
+- **🎯 Domain-Driven Design (DDD)**: Rich domain models with bounded contexts
+- **⚡ SOLID Principles**: Maintainable and extensible code
+- **🧪 Test-Driven Development (TDD)**: Tests written before production code
+
+📚 **Comprehensive Guides Available**:
+- [Clean Architecture Guide](./docs/CLEAN_ARCHITECTURE.md) - Layers, dependency rules, examples
+- [DDD Guide](./docs/DDD_GUIDE.md) - Entities, aggregates, value objects, domain events
+- [SOLID Principles Guide](./docs/SOLID_PRINCIPLES.md) - Practical Go examples
+- [TDD Guide](./docs/TDD_GUIDE.md) - Red-Green-Refactor workflow
+- [Architecture Docs Overview](./docs/README.md) - Quick reference and patterns
+
+**All services must follow these principles** to ensure consistency and maintainability across the platform.
+
 ## Technology Stack
 
 ### Core Technologies
