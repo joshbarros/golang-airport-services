@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joshbarros/golang-airport-services/pkg/config"
 	"github.com/joshbarros/golang-airport-services/pkg/logger"
@@ -90,7 +91,7 @@ func (db *PostgresDB) Stats() *pgxpool.Stat {
 }
 
 // WithTransaction executes a function within a transaction
-func (db *PostgresDB) WithTransaction(ctx context.Context, fn func(tx pgxpool.Tx) error) error {
+func (db *PostgresDB) WithTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error {
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
