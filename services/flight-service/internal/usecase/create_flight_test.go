@@ -12,8 +12,9 @@ import (
 
 // Mock repository for testing
 type mockFlightRepository struct {
-	saveFn                     func(ctx context.Context, flight *entity.Flight) error
-	findByFlightNumberFn       func(ctx context.Context, flightNumber valueobject.FlightNumber, date time.Time) (*entity.Flight, error)
+	saveFn               func(ctx context.Context, flight *entity.Flight) error
+	findByIDFn           func(ctx context.Context, id string) (*entity.Flight, error)
+	findByFlightNumberFn func(ctx context.Context, flightNumber valueobject.FlightNumber, date time.Time) (*entity.Flight, error)
 }
 
 func (m *mockFlightRepository) Save(ctx context.Context, flight *entity.Flight) error {
@@ -24,6 +25,9 @@ func (m *mockFlightRepository) Save(ctx context.Context, flight *entity.Flight) 
 }
 
 func (m *mockFlightRepository) FindByID(ctx context.Context, id string) (*entity.Flight, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, id)
+	}
 	return nil, nil
 }
 
