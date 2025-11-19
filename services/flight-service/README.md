@@ -4,13 +4,20 @@ A production-grade microservice for managing flight operations built with Clean 
 
 ## Features
 
+### Flight Operations
 - ✅ **Create Flight** - Schedule new flights
 - ✅ **Get Flight** - Retrieve flight details by ID
+- ✅ **List Flights** - Query flights with 7+ filter types (status, origin, destination, date range, etc.)
+- ✅ **Search by Number** - Find flights by flight number with optional date filtering
 - ✅ **Update Status** - Change flight status (scheduled → boarding → departed → in_flight → landed → arrived)
 - ✅ **Delay Flight** - Delay a flight with reason
 - ✅ **Cancel Flight** - Cancel a flight with reason
+
+### Architecture Features
 - ✅ **Status Validation** - Enforces valid state transitions
 - ✅ **Business Rules** - Cannot delay/cancel after departure
+- ✅ **Event-Driven** - Publishes domain events to RabbitMQ for inter-service communication
+- ✅ **Async Communication** - 7 event types (FlightCreated, StatusChanged, Delayed, Cancelled, BoardingStarted, Departed, Arrived)
 
 ## Architecture
 
@@ -135,11 +142,13 @@ GET /ready        # Readiness probe
 ### Flight Operations
 
 ```http
-POST   /api/v1/flights              # Create a flight
-GET    /api/v1/flights/:id          # Get flight by ID
-PATCH  /api/v1/flights/:id/status   # Update flight status
-POST   /api/v1/flights/:id/delay    # Delay a flight
-POST   /api/v1/flights/:id/cancel   # Cancel a flight
+POST   /api/v1/flights                        # Create a flight
+GET    /api/v1/flights                        # List flights with filters
+GET    /api/v1/flights/search?number=AA123    # Search by flight number
+GET    /api/v1/flights/:id                    # Get flight by ID
+PATCH  /api/v1/flights/:id/status             # Update flight status
+POST   /api/v1/flights/:id/delay              # Delay a flight
+POST   /api/v1/flights/:id/cancel             # Cancel a flight
 ```
 
 ### Example: Create Flight
@@ -179,6 +188,35 @@ curl -X POST http://localhost:8080/api/v1/flights/{id}/delay \
   }'
 ```
 
+### Example: List Flights with Filters
+
+```bash
+# List all flights (paginated)
+curl http://localhost:8080/api/v1/flights?page=1&limit=20
+
+# Filter by status
+curl http://localhost:8080/api/v1/flights?status=boarding
+
+# Filter by origin and destination
+curl http://localhost:8080/api/v1/flights?origin=JFK&destination=LAX
+
+# Filter by date range
+curl "http://localhost:8080/api/v1/flights?start_date=2025-12-01T00:00:00Z&end_date=2025-12-31T23:59:59Z"
+
+# Get only delayed flights
+curl http://localhost:8080/api/v1/flights?delayed_only=true
+```
+
+### Example: Search by Flight Number
+
+```bash
+# Search for flight AA123 (latest)
+curl http://localhost:8080/api/v1/flights/search?number=AA123
+
+# Search for specific date
+curl http://localhost:8080/api/v1/flights/search?number=AA123&date=2025-12-01
+```
+
 ## Testing
 
 ```bash
@@ -198,6 +236,57 @@ go tool cover -html=coverage.out
 ```
 
 **Current Test Coverage**: 40+ tests, 0 failures
+
+## Event-Driven Architecture
+
+The Flight Service publishes domain events to RabbitMQ for asynchronous inter-service communication.
+
+### Published Events
+
+The service publishes 7 types of domain events:
+
+1. **flight.created** - When a new flight is scheduled
+2. **flight.status.changed** - When flight status is updated
+3. **flight.delayed** - When a flight is delayed
+4. **flight.cancelled** - When a flight is cancelled
+5. **flight.boarding.started** - When boarding begins
+6. **flight.departed** - When flight departs
+7. **flight.arrived** - When flight arrives at destination
+
+### Event Routing
+
+- Uses RabbitMQ **topic exchange** for flexible routing
+- Events are published with routing key = event type (e.g., `flight.created`)
+- Other services can subscribe to specific event types using routing patterns
+- Messages are **persistent** for reliability
+
+### Configuration
+
+Events are optional and don't block operations:
+```bash
+# Enable events (requires RabbitMQ)
+RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+RABBITMQ_EXCHANGE=flight-events
+
+# Service works without RabbitMQ (events disabled)
+# Simply omit RABBITMQ_URL environment variable
+```
+
+### Example Event Payload
+
+```json
+{
+  "flight_id": "550e8400-e29b-41d4-a716-446655440000",
+  "flight_number": "AA123",
+  "origin": "JFK",
+  "destination": "LAX",
+  "delay_duration": 30,
+  "reason": "Weather conditions",
+  "new_departure_time": "2025-12-01T10:30:00Z",
+  "new_arrival_time": "2025-12-01T14:00:00Z",
+  "delayed_at": "2025-12-01T09:45:00Z"
+}
+```
 
 ## Database Schema
 
