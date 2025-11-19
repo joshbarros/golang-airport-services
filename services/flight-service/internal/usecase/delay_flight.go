@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/joshbarros/golang-airport-services/pkg/errors"
+	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/domain/event"
 	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/domain/repository"
 )
 
@@ -18,13 +19,15 @@ type DelayFlightInput struct {
 
 // DelayFlightUseCase handles delaying a flight
 type DelayFlightUseCase struct {
-	flightRepo repository.FlightRepository
+	flightRepo     repository.FlightRepository
+	eventPublisher event.Publisher
 }
 
 // NewDelayFlightUseCase creates a new instance
-func NewDelayFlightUseCase(flightRepo repository.FlightRepository) *DelayFlightUseCase {
+func NewDelayFlightUseCase(flightRepo repository.FlightRepository, eventPublisher event.Publisher) *DelayFlightUseCase {
 	return &DelayFlightUseCase{
-		flightRepo: flightRepo,
+		flightRepo:     flightRepo,
+		eventPublisher: eventPublisher,
 	}
 }
 
@@ -60,6 +63,22 @@ func (uc *DelayFlightUseCase) Execute(ctx context.Context, input DelayFlightInpu
 	// Save updated flight
 	if err := uc.flightRepo.Save(ctx, flight); err != nil {
 		return nil, errors.InternalServerError("failed to delay flight").Wrap(err)
+	}
+
+	// Publish FlightDelayedEvent (optional - service can work without events)
+	if uc.eventPublisher != nil {
+		evt := event.FlightDelayedEvent{
+			FlightID:      flight.ID(),
+			FlightNumber:  flight.FlightNumber().String(),
+			Origin:        flight.Origin(),
+			Destination:   flight.Destination(),
+			DelayDuration: int(input.DelayDuration.Minutes()),
+			Reason:        input.Reason,
+			NewDeparture:  flight.DepartureTime(),
+			NewArrival:    flight.ArrivalTime(),
+			DelayedAt:     flight.UpdatedAt(),
+		}
+		_ = uc.eventPublisher.Publish(ctx, evt)
 	}
 
 	return toFlightOutput(flight), nil

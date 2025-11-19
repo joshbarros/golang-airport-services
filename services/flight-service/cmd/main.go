@@ -11,6 +11,8 @@ import (
 	"github.com/joshbarros/golang-airport-services/pkg/config"
 	"github.com/joshbarros/golang-airport-services/pkg/database"
 	"github.com/joshbarros/golang-airport-services/pkg/logger"
+	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/domain/event"
+	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/infrastructure/messaging/rabbitmq"
 	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/infrastructure/persistence/postgres"
 	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/interfaces/http/handler"
 	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/interfaces/http/router"
@@ -52,19 +54,41 @@ func main() {
 	// Initialize repository
 	flightRepo := postgres.NewFlightRepository(db.Pool, log)
 
+	// Initialize event publisher (optional - can be nil)
+	var eventPublisher event.Publisher
+	if cfg.RabbitMQ.URL != "" {
+		var err error
+		eventPublisher, err = rabbitmq.NewEventPublisher(cfg.RabbitMQ.URL, cfg.RabbitMQ.Exchange, log)
+		if err != nil {
+			log.Warn("Failed to connect to RabbitMQ, events will not be published",
+				zap.Error(err),
+				zap.String("url", cfg.RabbitMQ.URL),
+			)
+		} else {
+			defer eventPublisher.Close()
+			log.Info("Event publisher initialized",
+				zap.String("exchange", cfg.RabbitMQ.Exchange),
+			)
+		}
+	} else {
+		log.Info("RabbitMQ URL not configured, events will not be published")
+	}
+
 	// Initialize use cases (Dependency Injection)
-	createFlightUC := usecase.NewCreateFlightUseCase(flightRepo)
+	createFlightUC := usecase.NewCreateFlightUseCase(flightRepo, eventPublisher)
 	getFlightUC := usecase.NewGetFlightUseCase(flightRepo)
 	listFlightsUC := usecase.NewListFlightsUseCase(flightRepo)
-	updateFlightStatusUC := usecase.NewUpdateFlightStatusUseCase(flightRepo)
-	delayFlightUC := usecase.NewDelayFlightUseCase(flightRepo)
-	cancelFlightUC := usecase.NewCancelFlightUseCase(flightRepo)
+	searchFlightsByNumberUC := usecase.NewSearchFlightsByNumberUseCase(flightRepo)
+	updateFlightStatusUC := usecase.NewUpdateFlightStatusUseCase(flightRepo, eventPublisher)
+	delayFlightUC := usecase.NewDelayFlightUseCase(flightRepo, eventPublisher)
+	cancelFlightUC := usecase.NewCancelFlightUseCase(flightRepo, eventPublisher)
 
 	// Initialize HTTP handler
 	flightHandler := handler.NewFlightHandler(
 		createFlightUC,
 		getFlightUC,
 		listFlightsUC,
+		searchFlightsByNumberUC,
 		updateFlightStatusUC,
 		delayFlightUC,
 		cancelFlightUC,

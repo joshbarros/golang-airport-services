@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/joshbarros/golang-airport-services/pkg/errors"
+	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/domain/event"
 	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/domain/repository"
 )
 
@@ -16,13 +17,15 @@ type CancelFlightInput struct {
 
 // CancelFlightUseCase handles cancelling a flight
 type CancelFlightUseCase struct {
-	flightRepo repository.FlightRepository
+	flightRepo     repository.FlightRepository
+	eventPublisher event.Publisher
 }
 
 // NewCancelFlightUseCase creates a new instance
-func NewCancelFlightUseCase(flightRepo repository.FlightRepository) *CancelFlightUseCase {
+func NewCancelFlightUseCase(flightRepo repository.FlightRepository, eventPublisher event.Publisher) *CancelFlightUseCase {
 	return &CancelFlightUseCase{
-		flightRepo: flightRepo,
+		flightRepo:     flightRepo,
+		eventPublisher: eventPublisher,
 	}
 }
 
@@ -54,6 +57,19 @@ func (uc *CancelFlightUseCase) Execute(ctx context.Context, input CancelFlightIn
 	// Save updated flight
 	if err := uc.flightRepo.Save(ctx, flight); err != nil {
 		return nil, errors.InternalServerError("failed to cancel flight").Wrap(err)
+	}
+
+	// Publish FlightCancelledEvent (optional - service can work without events)
+	if uc.eventPublisher != nil {
+		evt := event.FlightCancelledEvent{
+			FlightID:     flight.ID(),
+			FlightNumber: flight.FlightNumber().String(),
+			Origin:       flight.Origin(),
+			Destination:  flight.Destination(),
+			Reason:       input.Reason,
+			CancelledAt:  flight.UpdatedAt(),
+		}
+		_ = uc.eventPublisher.Publish(ctx, evt)
 	}
 
 	return toFlightOutput(flight), nil

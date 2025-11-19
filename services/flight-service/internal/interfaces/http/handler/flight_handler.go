@@ -15,13 +15,14 @@ import (
 
 // FlightHandler handles HTTP requests for flight operations
 type FlightHandler struct {
-	createFlightUC       *usecase.CreateFlightUseCase
-	getFlightUC          *usecase.GetFlightUseCase
-	listFlightsUC        *usecase.ListFlightsUseCase
-	updateFlightStatusUC *usecase.UpdateFlightStatusUseCase
-	delayFlightUC        *usecase.DelayFlightUseCase
-	cancelFlightUC       *usecase.CancelFlightUseCase
-	logger               *logger.Logger
+	createFlightUC            *usecase.CreateFlightUseCase
+	getFlightUC               *usecase.GetFlightUseCase
+	listFlightsUC             *usecase.ListFlightsUseCase
+	searchFlightsByNumberUC   *usecase.SearchFlightsByNumberUseCase
+	updateFlightStatusUC      *usecase.UpdateFlightStatusUseCase
+	delayFlightUC             *usecase.DelayFlightUseCase
+	cancelFlightUC            *usecase.CancelFlightUseCase
+	logger                    *logger.Logger
 }
 
 // NewFlightHandler creates a new FlightHandler
@@ -29,19 +30,21 @@ func NewFlightHandler(
 	createFlightUC *usecase.CreateFlightUseCase,
 	getFlightUC *usecase.GetFlightUseCase,
 	listFlightsUC *usecase.ListFlightsUseCase,
+	searchFlightsByNumberUC *usecase.SearchFlightsByNumberUseCase,
 	updateFlightStatusUC *usecase.UpdateFlightStatusUseCase,
 	delayFlightUC *usecase.DelayFlightUseCase,
 	cancelFlightUC *usecase.CancelFlightUseCase,
 	logger *logger.Logger,
 ) *FlightHandler {
 	return &FlightHandler{
-		createFlightUC:       createFlightUC,
-		getFlightUC:          getFlightUC,
-		listFlightsUC:        listFlightsUC,
-		updateFlightStatusUC: updateFlightStatusUC,
-		delayFlightUC:        delayFlightUC,
-		cancelFlightUC:       cancelFlightUC,
-		logger:               logger,
+		createFlightUC:          createFlightUC,
+		getFlightUC:             getFlightUC,
+		listFlightsUC:           listFlightsUC,
+		searchFlightsByNumberUC: searchFlightsByNumberUC,
+		updateFlightStatusUC:    updateFlightStatusUC,
+		delayFlightUC:           delayFlightUC,
+		cancelFlightUC:          cancelFlightUC,
+		logger:                  logger,
 	}
 }
 
@@ -417,6 +420,61 @@ func toFlightResponse(output *usecase.GetFlightOutput) dto.FlightResponse {
 		CreatedAt:           output.CreatedAt,
 		UpdatedAt:           output.UpdatedAt,
 	}
+}
+
+// SearchFlightByNumber handles GET /api/v1/flights/search?number=AA123&date=2025-12-01
+// @Summary Search for flights by flight number
+// @Tags flights
+// @Param number query string true "Flight number (e.g. AA123)"
+// @Param date query string false "Flight date (YYYY-MM-DD format)"
+// @Success 200 {object} dto.FlightResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 404 {object} errors.ErrorResponse
+// @Router /api/v1/flights/search [get]
+func (h *FlightHandler) SearchFlightByNumber(c *gin.Context) {
+	flightNumber := c.Query("number")
+	if flightNumber == "" {
+		appErr := errors.BadRequest("flight number is required")
+		c.JSON(appErr.StatusCode, appErr)
+		return
+	}
+
+	var flightDate time.Time
+	if dateStr := c.Query("date"); dateStr != "" {
+		var err error
+		flightDate, err = time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			appErr := errors.BadRequest("invalid date format, use YYYY-MM-DD")
+			c.JSON(appErr.StatusCode, appErr)
+			return
+		}
+	}
+
+	input := usecase.SearchFlightsByNumberInput{
+		FlightNumber: flightNumber,
+		Date:         flightDate,
+	}
+
+	output, err := h.searchFlightsByNumberUC.Execute(c.Request.Context(), input)
+	if err != nil {
+		if appErr, ok := err.(*errors.AppError); ok {
+			h.logger.Warn("Failed to search flight by number",
+				zap.String("flight_number", flightNumber),
+				zap.String("error", appErr.Message),
+			)
+			c.JSON(appErr.StatusCode, appErr)
+			return
+		}
+		h.logger.Error("Unexpected error searching flight by number",
+			zap.String("flight_number", flightNumber),
+			zap.Error(err),
+		)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	response := toFlightResponse(output)
+	c.JSON(http.StatusOK, response)
 }
 
 // ParsePagination extracts pagination parameters from query string

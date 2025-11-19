@@ -44,6 +44,7 @@ func SetupRouter(
 		flights := v1.Group("/flights")
 		{
 			flights.GET("", flightHandler.ListFlights)
+			flights.GET("/search", flightHandler.SearchFlightByNumber)
 			flights.POST("", flightHandler.CreateFlight)
 			flights.GET("/:id", flightHandler.GetFlight)
 			flights.PATCH("/:id/status", flightHandler.UpdateFlightStatus)

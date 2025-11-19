@@ -7,6 +7,7 @@ import (
 
 	"github.com/joshbarros/golang-airport-services/pkg/errors"
 	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/domain/entity"
+	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/domain/event"
 	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/domain/repository"
 	"github.com/joshbarros/golang-airport-services/services/flight-service/internal/domain/valueobject"
 )
@@ -40,13 +41,15 @@ type CreateFlightOutput struct {
 
 // CreateFlightUseCase handles the creation of a new flight
 type CreateFlightUseCase struct {
-	flightRepo repository.FlightRepository
+	flightRepo     repository.FlightRepository
+	eventPublisher event.Publisher
 }
 
 // NewCreateFlightUseCase creates a new instance of CreateFlightUseCase
-func NewCreateFlightUseCase(flightRepo repository.FlightRepository) *CreateFlightUseCase {
+func NewCreateFlightUseCase(flightRepo repository.FlightRepository, eventPublisher event.Publisher) *CreateFlightUseCase {
 	return &CreateFlightUseCase{
-		flightRepo: flightRepo,
+		flightRepo:     flightRepo,
+		eventPublisher: eventPublisher,
 	}
 }
 
@@ -91,6 +94,23 @@ func (uc *CreateFlightUseCase) Execute(ctx context.Context, input CreateFlightIn
 	// Save flight to repository
 	if err := uc.flightRepo.Save(ctx, flight); err != nil {
 		return nil, errors.InternalServerError("failed to create flight").Wrap(err)
+	}
+
+	// Publish FlightCreatedEvent (optional - service can work without events)
+	if uc.eventPublisher != nil {
+		evt := event.FlightCreatedEvent{
+			ID:            flight.ID(),
+			FlightNumber:  flight.FlightNumber().String(),
+			Origin:        flight.Origin(),
+			Destination:   flight.Destination(),
+			DepartureTime: flight.DepartureTime(),
+			ArrivalTime:   flight.ArrivalTime(),
+			AircraftType:  flight.AircraftType(),
+			Gate:          flight.Gate(),
+			CreatedAt:     flight.CreatedAt(),
+		}
+		// Don't fail the operation if event publishing fails
+		_ = uc.eventPublisher.Publish(ctx, evt)
 	}
 
 	// Return output
