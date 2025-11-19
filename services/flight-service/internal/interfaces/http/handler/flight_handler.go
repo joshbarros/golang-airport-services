@@ -17,6 +17,7 @@ import (
 type FlightHandler struct {
 	createFlightUC       *usecase.CreateFlightUseCase
 	getFlightUC          *usecase.GetFlightUseCase
+	listFlightsUC        *usecase.ListFlightsUseCase
 	updateFlightStatusUC *usecase.UpdateFlightStatusUseCase
 	delayFlightUC        *usecase.DelayFlightUseCase
 	cancelFlightUC       *usecase.CancelFlightUseCase
@@ -27,6 +28,7 @@ type FlightHandler struct {
 func NewFlightHandler(
 	createFlightUC *usecase.CreateFlightUseCase,
 	getFlightUC *usecase.GetFlightUseCase,
+	listFlightsUC *usecase.ListFlightsUseCase,
 	updateFlightStatusUC *usecase.UpdateFlightStatusUseCase,
 	delayFlightUC *usecase.DelayFlightUseCase,
 	cancelFlightUC *usecase.CancelFlightUseCase,
@@ -35,6 +37,7 @@ func NewFlightHandler(
 	return &FlightHandler{
 		createFlightUC:       createFlightUC,
 		getFlightUC:          getFlightUC,
+		listFlightsUC:        listFlightsUC,
 		updateFlightStatusUC: updateFlightStatusUC,
 		delayFlightUC:        delayFlightUC,
 		cancelFlightUC:       cancelFlightUC,
@@ -126,6 +129,102 @@ func (h *FlightHandler) GetFlight(c *gin.Context) {
 	}
 
 	response := toFlightResponse(output)
+	c.JSON(http.StatusOK, response)
+}
+
+// ListFlights handles GET /api/v1/flights
+// @Summary List flights with optional filters
+// @Tags flights
+// @Produce json
+// @Param status query string false "Filter by status (scheduled, boarding, departed, in_flight, landed, arrived, delayed, cancelled)"
+// @Param origin query string false "Filter by origin airport code (e.g., JFK)"
+// @Param destination query string false "Filter by destination airport code (e.g., LAX)"
+// @Param start_date query string false "Filter by start date (RFC3339 format)"
+// @Param end_date query string false "Filter by end date (RFC3339 format)"
+// @Param active_only query boolean false "Show only active flights"
+// @Param delayed_only query boolean false "Show only delayed flights"
+// @Param page query int false "Page number (default: 1)"
+// @Param limit query int false "Page size (default: 20, max: 100)"
+// @Success 200 {object} dto.FlightListResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/v1/flights [get]
+func (h *FlightHandler) ListFlights(c *gin.Context) {
+	requestID := c.GetString("request_id")
+
+	// Parse query parameters
+	status := c.Query("status")
+	origin := c.Query("origin")
+	destination := c.Query("destination")
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+	activeOnly := c.Query("active_only") == "true"
+	delayedOnly := c.Query("delayed_only") == "true"
+
+	// Parse pagination
+	limit, offset := ParsePagination(c)
+
+	// Parse dates if provided
+	var startDate, endDate *time.Time
+	if startDateStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, startDateStr); err == nil {
+			startDate = &parsed
+		} else {
+			h.respondWithError(c, errors.BadRequest("invalid start_date format, use RFC3339"))
+			return
+		}
+	}
+	if endDateStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, endDateStr); err == nil {
+			endDate = &parsed
+		} else {
+			h.respondWithError(c, errors.BadRequest("invalid end_date format, use RFC3339"))
+			return
+		}
+	}
+
+	h.logger.Debug("Listing flights",
+		zap.String("request_id", requestID),
+		zap.String("status", status),
+		zap.String("origin", origin),
+		zap.String("destination", destination),
+		zap.Bool("active_only", activeOnly),
+		zap.Bool("delayed_only", delayedOnly),
+		zap.Int("limit", limit),
+		zap.Int("offset", offset),
+	)
+
+	input := usecase.ListFlightsInput{
+		Status:      status,
+		Origin:      origin,
+		Destination: destination,
+		StartDate:   startDate,
+		EndDate:     endDate,
+		ActiveOnly:  activeOnly,
+		DelayedOnly: delayedOnly,
+		Limit:       limit,
+		Offset:      offset,
+	}
+
+	output, err := h.listFlightsUC.Execute(c.Request.Context(), input)
+	if err != nil {
+		h.respondWithError(c, err)
+		return
+	}
+
+	// Convert to response
+	flights := make([]dto.FlightResponse, 0, len(output.Flights))
+	for _, flight := range output.Flights {
+		flights = append(flights, toFlightResponse(flight))
+	}
+
+	response := dto.FlightListResponse{
+		Flights:    flights,
+		TotalCount: output.TotalCount,
+		Page:       output.Page,
+		PageSize:   output.PageSize,
+	}
+
 	c.JSON(http.StatusOK, response)
 }
 

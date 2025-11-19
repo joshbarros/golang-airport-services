@@ -43,6 +43,7 @@ func SetupRouter(
 		// Flight routes
 		flights := v1.Group("/flights")
 		{
+			flights.GET("", flightHandler.ListFlights)
 			flights.POST("", flightHandler.CreateFlight)
 			flights.GET("/:id", flightHandler.GetFlight)
 			flights.PATCH("/:id/status", flightHandler.UpdateFlightStatus)

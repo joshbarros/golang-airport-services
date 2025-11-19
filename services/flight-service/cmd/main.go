@@ -55,6 +55,7 @@ func main() {
 	// Initialize use cases (Dependency Injection)
 	createFlightUC := usecase.NewCreateFlightUseCase(flightRepo)
 	getFlightUC := usecase.NewGetFlightUseCase(flightRepo)
+	listFlightsUC := usecase.NewListFlightsUseCase(flightRepo)
 	updateFlightStatusUC := usecase.NewUpdateFlightStatusUseCase(flightRepo)
 	delayFlightUC := usecase.NewDelayFlightUseCase(flightRepo)
 	cancelFlightUC := usecase.NewCancelFlightUseCase(flightRepo)
@@ -63,6 +64,7 @@ func main() {
 	flightHandler := handler.NewFlightHandler(
 		createFlightUC,
 		getFlightUC,
+		listFlightsUC,
 		updateFlightStatusUC,
 		delayFlightUC,
 		cancelFlightUC,
